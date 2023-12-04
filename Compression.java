@@ -42,28 +42,14 @@ public class Compression {
         //corresponds to the index of the nearest quantized vector for the respective input vector in the Vectors vector.
         quantizedIndices = optimize(Vectors, Quantized);
 
+        write_compressedFile(Path, originalWidth, originalHeight, scaledWidth, scaledHeight,
+                vectorWidth, vectorHeight, quantizedIndices, Quantized);
         writeCompressedFile(Path, originalWidth, originalHeight, scaledWidth, scaledHeight,
                 vectorWidth, vectorHeight, quantizedIndices, Quantized);
-
         return true;
     }
 
-    static void writeCompressedFile(String filePath, int originalWidth, int originalHeight, int scaledWidth,
-                                    int scaledHeight, int vectorWidth, int vectorHeight, Vector<Integer> vectorsIndices, Vector<Vector<Integer>> Quantized)
-            throws IOException {
-        FileOutputStream fileOutputStream = new FileOutputStream(getCompressedPath(filePath));
-        ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
 
-        objectOutputStream.writeObject(originalWidth);
-        objectOutputStream.writeObject(originalHeight);
-        objectOutputStream.writeObject(scaledWidth);
-        objectOutputStream.writeObject(scaledHeight);
-        objectOutputStream.writeObject(vectorWidth);
-        objectOutputStream.writeObject(vectorHeight);
-        objectOutputStream.writeObject(vectorsIndices);
-        objectOutputStream.writeObject(Quantized);
-        objectOutputStream.close();
-    }
 
     static Vector<Integer> optimize(Vector<Vector<Integer>> Vectors, Vector<Vector<Integer>> Quantized) {
         Vector<Integer> QuantizedIndices = new Vector<>();
@@ -140,5 +126,46 @@ public class Compression {
             returnVector.add(sum[i] / Vectors.size());
 
         return returnVector;
+    }
+    static void write_compressedFile(String compressedFilePath, int width, int height, int scaledWidth,
+                                      int scaledHeight, int vectorWidth, int vectorHeight,
+                                      Vector<Integer> QIndices, Vector<Vector<Integer>> Quantized)
+            throws IOException {
+        int[][] newImg = new int[scaledHeight][scaledWidth];
+
+        for (int i = 0; i < QIndices.size(); i++) {
+            int x = i / (scaledWidth / vectorWidth);
+            int y = i % (scaledWidth / vectorWidth);
+            x *= vectorHeight;
+            y *= vectorWidth;
+            int v = 0;
+            for (int j = x; j < x + vectorHeight; j++) {
+                for (int k = y; k < y + vectorWidth; k++) {
+                    newImg[j][k] = Quantized.get(QIndices.get(i)).get(v++);
+                }
+            }
+        }
+
+        Image.writeImage(newImg, width, height, compressedPath(compressedFilePath));
+    }
+    static void writeCompressedFile(String filePath, int originalWidth, int originalHeight, int scaledWidth,
+                                    int scaledHeight, int vectorWidth, int vectorHeight, Vector<Integer> vectorsIndices, Vector<Vector<Integer>> Quantized)
+            throws IOException {
+        FileOutputStream fileOutputStream = new FileOutputStream(getCompressedPath(filePath));
+        ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
+
+        objectOutputStream.writeObject(originalWidth);
+        objectOutputStream.writeObject(originalHeight);
+        objectOutputStream.writeObject(scaledWidth);
+        objectOutputStream.writeObject(scaledHeight);
+        objectOutputStream.writeObject(vectorWidth);
+        objectOutputStream.writeObject(vectorHeight);
+        objectOutputStream.writeObject(vectorsIndices);
+        objectOutputStream.writeObject(Quantized);
+        objectOutputStream.close();
+
+    }
+    static String compressedPath(String path) {
+        return path.substring(0, path.lastIndexOf('.')) + "_Compressed.jpg";
     }
 }
